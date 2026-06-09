@@ -1,0 +1,59 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# GitHub Pages — Deploy Aadhaar QR Code Reader
+#
+# Triggers on every push to `main` (and can be run manually via
+# workflow_dispatch). The entire repository root is published as a static site
+# — no build step is required because the app is pure HTML / CSS / JS.
+#
+# Required repo setting:
+#   Settings → Pages → Source: "GitHub Actions"
+#
+# @author  Prashantt Tripathi <https://github.com/ptprashanttripathi>
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  # Allow triggering a deploy from the Actions tab without a push
+  workflow_dispatch:
+
+# Grant the GITHUB_TOKEN just enough scope to publish Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent deployment; don't cancel in-progress runs so a
+# partial deploy is never left dangling
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      # Upload the entire repo root as the Pages artifact.
+      # Adjust `path` if you ever move files into a sub-folder (e.g. `./public`).
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

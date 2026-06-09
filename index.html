@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Aadhaar QR Code Reader</title>
+    <meta name="title" content="Aadhaar QR Code Reader" />
+    <meta name="description"
+        content="🇮🇳 Offline Aadhaar Secure QR Code Reader — scan or upload any Aadhaar card QR to instantly decode identity details. Pure HTML/CSS/JS, no server, no data leaves your device." />
+    <meta name="keywords"
+        content="Aadhaar, QR code, code reader, offline, secure, identity, decode, UIDAI, India, personal data, privacy" />
+    <meta name="author" content="Pt. Prashant Tripathi" />
+    <meta name="language" content="English" />
+    <meta name="copyright" content="Pt. Prashant Tripathi © 2026" />
+    <meta name="robots" content="index, follow" />
+    <link rel="shortcut icon" href="favicon.ico" />
+
+    <!-- Link to the sitemap -->
+    <link rel="sitemap" type="application/xml" href="sitemap.xml" />
+
+    <link rel="icon" type="image/png" href="images/aadhaar_qr_code_reader_favicon.ico" />
+    <meta name="application-name" content="Aadhaar QR Code Reader" />
+    <meta name="msapplication-TileColor" content="#FFFFFF" />
+    <meta name="msapplication-TileImage" content="./images/aadhaar_qr_code_reader_favicon.ico" />
+    <meta property="og:title" content="Aadhaar QR Code Reader" />
+    <meta property="og:site_name" content="Aadhaar QR Code Reader" />
+    <meta property="og:url" content="https://ptprashanttripathi.github.io/AadhaarQRCodeReader/" />
+    <meta property="og:description"
+        content="🇮🇳 Offline Aadhaar Secure QR Code Reader — scan or upload any Aadhaar card QR to instantly decode identity details. Pure HTML/CSS/JS, no server, no data leaves your device." />
+    <meta property="og:type" content="website" />
+
+    <link rel="stylesheet" href="./css/base.css" />
+    <link rel="stylesheet" href="./css/components.css" />
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-C4NJD8J3MD"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag("js", new Date());
+
+        gtag("config", "G-C4NJD8J3MD");
+    </script>
+</head>
+
+<body>
+    <div class="app">
+        <div class="appbar">
+            <div class="appbar-emblem">
+                <img src="./images/emblem.png" alt="Emblem of India" />
+            </div>
+            <div class="appbar-text">
+                <h1>Aadhaar QR Code Reader</h1>
+                <p>Scan the Secure QR to verify identity</p>
+            </div>
+            <div class="appbar-chip">SECURE</div>
+        </div>
+        <div class="tricolor"><i></i><i></i><i></i></div>
+
+        <div class="content">
+            <section class="sheet" id="scanner-section">
+                <div class="sheet-head">
+                    <div class="ic">
+                        <img src="./images/scan_cam_icon.png" alt="" />
+                    </div>
+                    <div>
+                        <h2>Scan Aadhaar QR</h2>
+                        <p>Camera or upload a photo of the QR</p>
+                    </div>
+                </div>
+
+                <div class="scanner-wrap">
+                    <video id="video" autoplay playsinline muted></video>
+                    <canvas id="canvas"></canvas>
+                    <div class="scan-overlay">
+                        <div class="scan-frame">
+                            <div class="scan-line"></div>
+                        </div>
+                    </div>
+                    <div class="scan-dim"></div>
+                    <div id="placeholder">
+                        <div class="icon">
+                            <img src="./images/frame_scan.png" alt="" />
+                        </div>
+                        <p>
+                            Point your camera at the QR code printed on the
+                            Aadhaar card or letter
+                        </p>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn btn-start" id="btn-start" type="button">
+                        <img src="./images/scan_cam_icon.png" alt="" />
+                        Start Camera
+                    </button>
+                    <button class="btn btn-tonal" id="btn-switch" type="button" disabled title="Switch camera">
+                        <img src="./images/button_camera_flip.png" alt="" />
+                        Flip
+                    </button>
+                    <button class="btn btn-tonal" id="btn-upload" type="button">
+                        <img src="./images/upload_icon.png" alt="" /> Upload
+                    </button>
+                    <input type="file" id="file-input" accept="image/*" />
+                </div>
+
+                <div class="status">
+                    <div class="dot" id="dot"></div>
+                    <span id="status-text">Tap Start Camera to begin scanning</span>
+                </div>
+            </section>
+
+            <section id="result-section" class="is-hidden">
+                <div class="result-head">
+                    <span class="verified-badge">
+                        <img src="./images/tick_mark_green.png" alt="" /> QR
+                        VERIFIED
+                    </span>
+                </div>
+
+                <div class="card-stage">
+                    <div class="card-rotor">
+                        <div class="card-flip">
+                            <div class="card-face card-front" id="front-face">
+                                <div class="cf-top">
+                                    <img class="cf-emblem" src="./images/emblem.png" alt="" />
+                                    <div class="cf-gov">
+                                        Government of India<b>भारत सरकार</b>
+                                    </div>
+                                </div>
+                                <div class="cf-person">
+                                    <div class="cf-photo">
+                                        <img id="photo" src="./images/default_user.svg" alt="Photo" />
+                                    </div>
+                                    <div class="cf-info">
+                                        <div class="cf-name" id="name-english">
+                                            -
+                                        </div>
+                                        <div class="cf-line" id="dob"></div>
+                                        <div class="cf-line" id="gender"></div>
+                                    </div>
+                                </div>
+                                <div class="card-aadhar-number" id="front-number">
+                                    XXXX XXXX XXXX
+                                </div>
+                            </div>
+
+                            <div class="card-face card-back" id="back-face">
+                                <div class="cb-strip">
+                                    <img src="./images/authenticity_icon.png" alt="" />
+                                    <b>Address</b>
+                                </div>
+                                <div class="card-label">
+                                    Resident Address
+                                </div>
+                                <div class="card-text" id="address-english">
+                                    -
+                                </div>
+                                <div class="card-label">Mobile Number</div>
+                                <div class="card-text" id="mobile-number">
+                                    -
+                                </div>
+
+                                <!-- Email — shown only when present in QR data -->
+                                <div id="email-row" hidden>
+                                    <div class="card-label">Email</div>
+                                    <div class="card-text" id="email-address">
+                                        -
+                                    </div>
+                                </div>
+
+                                <!-- Reference date — vertical label above value -->
+                                <div class="card-label">Issued On</div>
+                                <div class="card-text" id="reference-date">
+                                    -
+                                </div>
+
+                                <div class="card-aadhar-number" id="back-number">
+                                    XXXX XXXX XXXX
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="action action-secondary" id="flip-button" type="button">
+                        <img src="./images/button_camera_flip.png" alt="" />
+                        Flip Card
+                    </button>
+                    <button class="action action-primary" id="back-to-scanner" type="button">
+                        <img src="./images/scan_cam_icon.png" alt="" /> Scan
+                        Again
+                    </button>
+                </div>
+            </section>
+
+            <div class="footer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                </svg>
+                Works fully offline - No data leaves your device
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/kripken/j2k.js/openjpeg.js"></script>
+    <script type="module" src="./script/main.js"></script>
+</body>
+
+</html>

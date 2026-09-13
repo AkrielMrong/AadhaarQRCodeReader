@@ -4,7 +4,12 @@
  * the Python InsightFace ArcFace verification backend.
  */
 
-const DEFAULT_SERVER_URL = "http://localhost:8000";
+const DEFAULT_SERVER_URL =
+    typeof window !== "undefined" &&
+    window.location.origin &&
+    window.location.origin.includes("qzz.io")
+        ? window.location.origin
+        : "http://localhost:8000";
 
 /**
  * Checks if the InsightFace backend server is reachable and healthy.

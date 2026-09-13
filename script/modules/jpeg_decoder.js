@@ -123,11 +123,19 @@ export async function decodeJp2Image(imageBytes) {
 
     ctx.putImageData(imgData, 0, 0);
 
-    // Integer upscale so small QR photos look crisp on retina screens.
-    const scale = Math.max(1, Math.min(6, Math.floor(460 / Math.max(width, height))));
+    // Upscale to high-resolution canvas so small QR photos look crisp on retina screens
+    const scale = Math.max(1, Math.min(6, Math.floor(360 / Math.max(width, height))));
+    const upscaled = document.createElement("canvas");
+    upscaled.width = width * scale;
+    upscaled.height = height * scale;
+    const uctx = upscaled.getContext("2d");
+    uctx.imageSmoothingEnabled = true;
+    uctx.imageSmoothingQuality = "high";
+    uctx.drawImage(offscreen, 0, 0, upscaled.width, upscaled.height);
+
     return {
-        data: offscreen.toDataURL("image/png"),
-        width: `${width * scale}px`,
-        height: `${height * scale}px`,
+        data: upscaled.toDataURL("image/png"),
+        width: `${upscaled.width}px`,
+        height: `${upscaled.height}px`,
     };
 }

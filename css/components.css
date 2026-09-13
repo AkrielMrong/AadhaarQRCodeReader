@@ -401,21 +401,23 @@
 }
 
 .cf-photo {
-    width: 50%;
-    aspect-ratio: 58 / 70;
-    border-radius: 6px;
+    width: clamp(84px, 48%, 116px);
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
     flex-shrink: 0;
     border: 1px solid rgba(120, 90, 50, 0.4);
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.6);
+    background: #ffffff;
     display: grid;
     place-items: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .cf-photo img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    image-rendering: auto;
 }
 
 .cf-info {

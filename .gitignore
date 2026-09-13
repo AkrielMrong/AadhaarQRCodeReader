@@ -88,3 +88,14 @@ tmp/
 temp/
 *.tmp
 *.temp
+
+# ── Python & virtual environments ─────────────────────────────────────────────
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+

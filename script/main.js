@@ -23,6 +23,13 @@
 import { decodeAadhaarQR } from "./modules/aadhaar.js";
 import { decodeJp2Image } from "./modules/jpeg_decoder.js";
 import { createCameraController, handleFileUpload } from "./modules/camera.js";
+import {
+    checkServerHealth,
+    startSelfieCamera,
+    stopSelfieCamera,
+    captureVideoFrame,
+    verifyFaceWithServer,
+} from "./modules/face_verifier.js";
 import { setStatus } from "./utils/dom.js";
 import { extractComment, formatAadhaarNumber } from "./utils/format.js";
 
@@ -43,6 +50,8 @@ import { extractComment, formatAadhaarNumber } from "./utils/format.js";
  *   btnStart:       HTMLButtonElement | null,
  *   btnSwitch:      HTMLButtonElement | null,
  *   btnUpload:      HTMLButtonElement | null,
+ *   cardRotor:      HTMLElement | null,
+ *   flipCard:       HTMLElement | null,
  *   backToScanner:  HTMLButtonElement | null,
  *   flipButton:     HTMLButtonElement | null,
  *   frontFace:      HTMLElement | null,
@@ -55,6 +64,14 @@ import { extractComment, formatAadhaarNumber } from "./utils/format.js";
  *   backNumber:     HTMLElement | null,
  *   addressEnglish: HTMLElement | null,
  *   mobile:         HTMLElement | null,
+ *   emailRow:       HTMLElement | null,
+ *   emailAddress:   HTMLElement | null,
+ *   referenceDate:  HTMLElement | null,
+ *   verifiedBadge:  HTMLElement | null,
+ *   verifiedIcon:   HTMLImageElement | null,
+ *   verifiedText:   HTMLElement | null,
+ *   signerInfo:     HTMLElement | null,
+ *   [key: string]:  any
  * }}
  */
 const dom = {
@@ -67,6 +84,8 @@ const dom = {
     btnStart:       document.getElementById("btn-start"),
     btnSwitch:      document.getElementById("btn-switch"),
     btnUpload:      document.getElementById("btn-upload"),
+    cardRotor:      document.getElementById("card-rotor"),
+    flipCard:       document.getElementById("flip-card"),
     backToScanner:  document.getElementById("back-to-scanner"),
     flipButton:     document.getElementById("flip-button"),
     frontFace:      document.getElementById("front-face"),
@@ -86,6 +105,29 @@ const dom = {
     verifiedIcon:   document.getElementById("verified-icon"),
     verifiedText:   document.getElementById("verified-text"),
     signerInfo:     document.getElementById("signer-info"),
+
+    // Face verification DOM elements
+    faceVerifyCard:      document.getElementById("face-verify-card"),
+    fvcBadge:            document.getElementById("fvc-badge"),
+    fvcAadhaarImg:       document.getElementById("fvc-aadhaar-img"),
+    fvcSelfieImg:        document.getElementById("fvc-selfie-img"),
+    fvcEmptyPrompt:      document.getElementById("fvc-empty-prompt"),
+    fvcCameraViewfinder: document.getElementById("fvc-camera-viewfinder"),
+    fvcVideo:            document.getElementById("fvc-video"),
+    btnSnapSelfie:       document.getElementById("btn-snap-selfie"),
+    btnCancelSelfie:     document.getElementById("btn-cancel-selfie"),
+    fvcMeterCard:        document.getElementById("fvc-meter-card"),
+    fvcScoreText:        document.getElementById("fvc-score-text"),
+    fvcConfidenceTag:    document.getElementById("fvc-confidence-tag"),
+    fvcMeterBar:         document.getElementById("fvc-meter-bar"),
+    fvcVerdict:          document.getElementById("fvc-verdict"),
+    btnOpenSelfieCam:    document.getElementById("btn-open-selfie-cam"),
+    btnUploadSelfie:     document.getElementById("btn-upload-selfie"),
+    selfieFileInput:     document.getElementById("selfie-file-input"),
+    fvcMainButtons:      document.getElementById("fvc-main-buttons"),
+    fvcServerStatus:     document.getElementById("fvc-server-status"),
+    fvcDot:              document.getElementById("fvc-dot"),
+    fvcServerText:       document.getElementById("fvc-server-text"),
 };
 
 /** Default photo `src` captured before any scan so it can be restored on reset. */
@@ -236,6 +278,7 @@ async function renderResult(userData) {
 
     // Reset to default photo while async decode runs.
     dom.photo.src = defaultPhotoSrc;
+    let aadhaarPhotoBase64 = "";
 
     if (userData.imageBytes && userData.imageBytes.length) {
         console.log("Embedded comment: " + extractComment(userData.imageBytes));
@@ -243,12 +286,15 @@ async function renderResult(userData) {
             const photoData = await decodeJp2Image(userData.imageBytes);
             if (photoData && photoData.data) {
                 dom.photo.src = photoData.data;
+                aadhaarPhotoBase64 = photoData.data;
+                if (dom.fvcAadhaarImg) dom.fvcAadhaarImg.src = photoData.data;
             }
         } catch (err) {
             console.warn("Photo decode failed:", err);
         }
     }
 
+    resetFaceVerificationState(aadhaarPhotoBase64);
     resetCardOrientation();
     showResultSection();
 }
@@ -362,6 +408,200 @@ window.addEventListener("popstate", () => {
     }
 });
 
+// ─── 1:1 InsightFace Verification Controllers ─────────────────────────────────
+
+/** Holds the active selfie video stream. */
+let selfieStream = null;
+/** Holds the current decoded Aadhaar photo base64 data URI. */
+let currentAadhaarPhoto = "";
+
+/**
+ * Resets the Face Verification card to its initial pending state.
+ * @param {string} aadhaarPhoto
+ */
+function resetFaceVerificationState(aadhaarPhoto) {
+    currentAadhaarPhoto = aadhaarPhoto;
+    if (selfieStream) {
+        stopSelfieCamera(selfieStream);
+        selfieStream = null;
+    }
+
+    if (dom.fvcBadge) {
+        dom.fvcBadge.className = "fvc-badge fvc-pending";
+        dom.fvcBadge.textContent = "PENDING SELFIE";
+    }
+
+    if (dom.fvcSelfieImg) dom.fvcSelfieImg.style.display = "none";
+    if (dom.fvcEmptyPrompt) dom.fvcEmptyPrompt.style.display = "";
+    if (dom.fvcCameraViewfinder) dom.fvcCameraViewfinder.classList.add("is-hidden");
+    if (dom.fvcMeterCard) dom.fvcMeterCard.classList.add("is-hidden");
+    if (dom.fvcMainButtons) dom.fvcMainButtons.style.display = "";
+
+    // Check InsightFace server health
+    updateServerHealthIndicator();
+}
+
+/**
+ * Pings the InsightFace backend server and updates the status indicator.
+ */
+async function updateServerHealthIndicator() {
+    if (!dom.fvcServerText || !dom.fvcDot) return;
+    dom.fvcDot.className = "fvc-dot";
+    dom.fvcServerText.textContent = "Checking InsightFace server...";
+
+    const health = await checkServerHealth();
+    if (health.available) {
+        dom.fvcDot.className = "fvc-dot online";
+        dom.fvcServerText.textContent = "InsightFace AI Server: Online (buffalo_s)";
+    } else {
+        dom.fvcDot.className = "fvc-dot offline";
+        dom.fvcServerText.textContent = "InsightFace Server: Offline (run: python server.py)";
+    }
+}
+
+/**
+ * Opens the front-facing selfie camera.
+ */
+async function openSelfieCamera() {
+    if (!dom.fvcVideo || !dom.fvcCameraViewfinder) return;
+    try {
+        dom.fvcCameraViewfinder.classList.remove("is-hidden");
+        if (dom.fvcMainButtons) dom.fvcMainButtons.style.display = "none";
+        selfieStream = await startSelfieCamera(dom.fvcVideo);
+    } catch (err) {
+        alert("Camera error: " + err.message + "\nYou can also use the 'Upload Photo' button.");
+        cancelSelfieCamera();
+    }
+}
+
+/**
+ * Cancels the selfie camera.
+ */
+function cancelSelfieCamera() {
+    if (selfieStream) {
+        stopSelfieCamera(selfieStream);
+        selfieStream = null;
+    }
+    if (dom.fvcCameraViewfinder) dom.fvcCameraViewfinder.classList.add("is-hidden");
+    if (dom.fvcMainButtons) dom.fvcMainButtons.style.display = "";
+}
+
+/**
+ * Snaps a selfie from the video frame and verifies it.
+ */
+async function snapSelfie() {
+    if (!dom.fvcVideo) return;
+    const selfieDataUri = captureVideoFrame(dom.fvcVideo);
+    cancelSelfieCamera();
+    await verifySelfie(selfieDataUri);
+}
+
+/**
+ * Compares the live selfie against the Aadhaar card photo using InsightFace.
+ * @param {string} selfieDataUri
+ */
+async function verifySelfie(selfieDataUri) {
+    if (!currentAadhaarPhoto) {
+        alert("No Aadhaar resident photo was found in this QR code to compare against.");
+        return;
+    }
+
+    if (dom.fvcSelfieImg) {
+        dom.fvcSelfieImg.src = selfieDataUri;
+        dom.fvcSelfieImg.style.display = "";
+    }
+    if (dom.fvcEmptyPrompt) dom.fvcEmptyPrompt.style.display = "none";
+
+    if (dom.fvcBadge) {
+        dom.fvcBadge.className = "fvc-badge fvc-verifying";
+        dom.fvcBadge.textContent = "ANALYZING FACE...";
+    }
+
+    if (dom.fvcMeterCard) dom.fvcMeterCard.classList.remove("is-hidden");
+    if (dom.fvcScoreText) dom.fvcScoreText.textContent = "Running InsightFace ArcFace neural network...";
+    if (dom.fvcConfidenceTag) {
+        dom.fvcConfidenceTag.className = "fvc-confidence-tag";
+        dom.fvcConfidenceTag.textContent = "PROCESSING";
+    }
+    if (dom.fvcMeterBar) {
+        dom.fvcMeterBar.className = "fvc-meter-bar";
+        dom.fvcMeterBar.style.width = "40%";
+    }
+    if (dom.fvcVerdict) {
+        dom.fvcVerdict.className = "fvc-verdict";
+        dom.fvcVerdict.textContent = "Extracting 512-dimensional facial embeddings...";
+    }
+
+    try {
+        const result = await verifyFaceWithServer({
+            aadhaarImage: currentAadhaarPhoto,
+            liveImage: selfieDataUri,
+        });
+
+        if (result.match) {
+            if (dom.fvcBadge) {
+                dom.fvcBadge.className = "fvc-badge fvc-match";
+                dom.fvcBadge.textContent = `MATCHED (${result.percentage}%)`;
+            }
+            if (dom.fvcConfidenceTag) {
+                dom.fvcConfidenceTag.className = "fvc-confidence-tag match";
+                dom.fvcConfidenceTag.textContent = result.confidence;
+            }
+            if (dom.fvcMeterBar) {
+                dom.fvcMeterBar.className = "fvc-meter-bar match";
+                dom.fvcMeterBar.style.width = `${result.percentage}%`;
+            }
+            if (dom.fvcScoreText) {
+                dom.fvcScoreText.textContent = `Match Score: ${result.percentage}% (Cosine: ${result.score})`;
+            }
+            if (dom.fvcVerdict) {
+                dom.fvcVerdict.className = "fvc-verdict match";
+                dom.fvcVerdict.textContent = `✅ Genuine Match: Live selfie matches the Aadhaar cardholder photo with ${result.confidence.toLowerCase()} confidence.`;
+            }
+        } else {
+            if (dom.fvcBadge) {
+                dom.fvcBadge.className = "fvc-badge fvc-mismatch";
+                dom.fvcBadge.textContent = `MISMATCH (${result.percentage}%)`;
+            }
+            if (dom.fvcConfidenceTag) {
+                dom.fvcConfidenceTag.className = "fvc-confidence-tag mismatch";
+                dom.fvcConfidenceTag.textContent = result.confidence;
+            }
+            if (dom.fvcMeterBar) {
+                dom.fvcMeterBar.className = "fvc-meter-bar mismatch";
+                dom.fvcMeterBar.style.width = `${Math.max(8, result.percentage)}%`;
+            }
+            if (dom.fvcScoreText) {
+                dom.fvcScoreText.textContent = `Match Score: ${result.percentage}% (Cosine: ${result.score})`;
+            }
+            if (dom.fvcVerdict) {
+                dom.fvcVerdict.className = "fvc-verdict mismatch";
+                dom.fvcVerdict.textContent = `⚠️ Warning: ${result.message}`;
+            }
+        }
+    } catch (err) {
+        if (dom.fvcBadge) {
+            dom.fvcBadge.className = "fvc-badge fvc-mismatch";
+            dom.fvcBadge.textContent = "SERVER OFFLINE";
+        }
+        if (dom.fvcConfidenceTag) {
+            dom.fvcConfidenceTag.className = "fvc-confidence-tag mismatch";
+            dom.fvcConfidenceTag.textContent = "ERROR";
+        }
+        if (dom.fvcMeterBar) {
+            dom.fvcMeterBar.className = "fvc-meter-bar mismatch";
+            dom.fvcMeterBar.style.width = "0%";
+        }
+        if (dom.fvcScoreText) {
+            dom.fvcScoreText.textContent = "InsightFace Server Connection Error";
+        }
+        if (dom.fvcVerdict) {
+            dom.fvcVerdict.className = "fvc-verdict mismatch";
+            dom.fvcVerdict.textContent = `Could not reach InsightFace API server at http://localhost:8000. Ensure the Python backend is running: python server.py (${err.message})`;
+        }
+    }
+}
+
 // ─── Event wiring ─────────────────────────────────────────────────────────────
 
 /**
@@ -413,6 +653,26 @@ function initEvents() {
     if (dom.photo) {
         dom.photo.addEventListener("error", () => {
             dom.photo.src = defaultPhotoSrc;
+        });
+    }
+
+    // Face verification event listeners
+    if (dom.btnOpenSelfieCam) dom.btnOpenSelfieCam.addEventListener("click", openSelfieCamera);
+    if (dom.btnCancelSelfie)  dom.btnCancelSelfie.addEventListener("click", cancelSelfieCamera);
+    if (dom.btnSnapSelfie)    dom.btnSnapSelfie.addEventListener("click", snapSelfie);
+
+    if (dom.btnUploadSelfie && dom.selfieFileInput) {
+        dom.btnUploadSelfie.addEventListener("click", () => dom.selfieFileInput.click());
+        dom.selfieFileInput.addEventListener("change", (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === "string") {
+                    verifySelfie(reader.result);
+                }
+            };
+            reader.readAsDataURL(file);
         });
     }
 }

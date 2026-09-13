@@ -633,3 +633,341 @@
         filter: brightness(1.04);
     }
 }
+
+/* ─── 1:1 InsightFace Verification Card ────────────────────────────────────── */
+
+.face-verify-card {
+    background: #ffffff;
+    border-radius: var(--rad-lg);
+    box-shadow: 0 4px 18px rgba(44, 26, 14, 0.08);
+    border: 1px solid rgba(200, 94, 10, 0.16);
+    padding: 16px;
+    margin: 14px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.fvc-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fvc-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.fvc-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-md);
+    font-weight: 800;
+    color: var(--text);
+}
+
+.fvc-title svg {
+    color: var(--primary);
+}
+
+.fvc-engine-tag {
+    font-size: var(--fs-xs);
+    color: #8c7657;
+    font-weight: 500;
+}
+
+.fvc-badge {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.fvc-badge.fvc-pending {
+    background: #f1f3f5;
+    color: #495057;
+    border: 1px solid #ced4da;
+}
+
+.fvc-badge.fvc-verifying {
+    background: #fff3bf;
+    color: #f08c00;
+    border: 1px solid #ffd43b;
+}
+
+.fvc-badge.fvc-match {
+    background: rgba(19, 136, 8, 0.14);
+    color: #138808;
+    border: 1px solid rgba(19, 136, 8, 0.35);
+    box-shadow: 0 0 10px rgba(19, 136, 8, 0.2);
+}
+
+.fvc-badge.fvc-mismatch {
+    background: rgba(217, 45, 32, 0.14);
+    color: #d92d20;
+    border: 1px solid rgba(217, 45, 32, 0.35);
+    box-shadow: 0 0 10px rgba(217, 45, 32, 0.2);
+}
+
+.fvc-grid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #faf6f0;
+    padding: 12px;
+    border-radius: var(--rad-md);
+    border: 1px dashed rgba(200, 94, 10, 0.22);
+}
+
+.fvc-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.fvc-box-label {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: #6a5638;
+}
+
+.fvc-img-wrap {
+    width: 88px;
+    height: 88px;
+    border-radius: var(--rad-md);
+    overflow: hidden;
+    background: #ffffff;
+    border: 2px solid #e7dac9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.fvc-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.fvc-empty-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #aa967e;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.fvc-vs-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fvc-vs-pill {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--primary);
+    background: #fff;
+    border: 1px solid var(--primary-light);
+    border-radius: 999px;
+    padding: 4px 8px;
+}
+
+/* Viewfinder */
+.fvc-camera-viewfinder {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.fvc-cam-frame {
+    width: 100%;
+    max-width: 280px;
+    aspect-ratio: 1/1;
+    border-radius: var(--rad-lg);
+    overflow: hidden;
+    position: relative;
+    background: #000;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.fvc-cam-frame video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.fvc-face-oval {
+    position: absolute;
+    inset: 12%;
+    border: 2px dashed rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+}
+
+.fvc-cam-buttons {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    max-width: 280px;
+}
+
+.fvc-cam-buttons button {
+    flex: 1;
+}
+
+/* Match Meter */
+.fvc-meter-card {
+    background: #faf6f0;
+    border-radius: var(--rad-md);
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid #e7dac9;
+}
+
+.fvc-meter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+}
+
+.fvc-confidence-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 800;
+    background: #e9ecef;
+    color: #495057;
+}
+
+.fvc-confidence-tag.match {
+    background: #d3f9d8;
+    color: #2b8a3e;
+}
+
+.fvc-confidence-tag.mismatch {
+    background: #ffe3e3;
+    color: #c92a2a;
+}
+
+.fvc-meter-track {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.fvc-meter-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--primary);
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+}
+
+.fvc-meter-bar.match {
+    background: #138808;
+}
+
+.fvc-meter-bar.mismatch {
+    background: #d92d20;
+}
+
+.fvc-verdict {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.fvc-verdict.match {
+    color: #138808;
+}
+
+.fvc-verdict.mismatch {
+    color: #d92d20;
+}
+
+/* Action buttons */
+.fvc-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.fvc-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: var(--rad-md);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.fvc-btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(200, 94, 10, 0.25);
+}
+
+.fvc-btn-primary:active {
+    transform: translateY(1px);
+}
+
+.fvc-btn-secondary {
+    background: #fff6ed;
+    color: var(--primary);
+    border: 1px solid rgba(200, 94, 10, 0.3);
+}
+
+/* Server status */
+.fvc-server-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #8c7657;
+    justify-content: center;
+}
+
+.fvc-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #adb5bd;
+}
+
+.fvc-dot.online {
+    background: #40c057;
+    box-shadow: 0 0 6px rgba(64, 192, 87, 0.6);
+}
+
+.fvc-dot.offline {
+    background: #fa5252;
+}
+

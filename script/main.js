@@ -82,6 +82,10 @@ const dom = {
     emailRow:       document.getElementById("email-row"),
     emailAddress:   document.getElementById("email-address"),
     referenceDate:  document.getElementById("reference-date"),
+    verifiedBadge:  document.getElementById("verified-badge"),
+    verifiedIcon:   document.getElementById("verified-icon"),
+    verifiedText:   document.getElementById("verified-text"),
+    signerInfo:     document.getElementById("signer-info"),
 };
 
 /** Default photo `src` captured before any scan so it can be restored on reset. */
@@ -191,6 +195,43 @@ async function renderResult(userData) {
         dom.emailRow.hidden = false;
     } else {
         dom.emailRow.hidden = true;
+    }
+
+    // Digital signature verification badge & cryptographic audit info
+    if (userData.signatureResult && userData.signatureResult.isValid) {
+        if (dom.verifiedBadge) {
+            dom.verifiedBadge.className = "verified-badge verified-success";
+        }
+        if (dom.verifiedIcon) {
+            dom.verifiedIcon.src = "./images/tick_mark_green.png";
+            dom.verifiedIcon.alt = "UIDAI Verified";
+        }
+        if (dom.verifiedText) {
+            dom.verifiedText.textContent = "UIDAI DIGITALLY VERIFIED";
+        }
+        if (dom.signerInfo) {
+            dom.signerInfo.className = "signer-info";
+            dom.signerInfo.textContent = `Offline verified: ${userData.signatureResult.signerName || "UIDAI"} (${userData.signatureResult.signerPeriod || "Official Certificate"})`;
+            dom.signerInfo.style.display = "";
+        }
+    } else {
+        if (dom.verifiedBadge) {
+            dom.verifiedBadge.className = "verified-badge verified-danger";
+        }
+        if (dom.verifiedIcon) {
+            dom.verifiedIcon.src = "./images/alert_icon_red.svg";
+            dom.verifiedIcon.alt = "Signature Mismatch / Tampered";
+        }
+        if (dom.verifiedText) {
+            dom.verifiedText.textContent = "SIGNATURE INVALID / TAMPERED";
+        }
+        if (dom.signerInfo) {
+            dom.signerInfo.className = "signer-info danger";
+            dom.signerInfo.textContent =
+                userData.signatureResult?.error ||
+                "WARNING: QR signature does not match UIDAI public keys. Data is forged or altered.";
+            dom.signerInfo.style.display = "";
+        }
     }
 
     // Reset to default photo while async decode runs.

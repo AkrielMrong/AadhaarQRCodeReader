@@ -5,6 +5,7 @@
  * Reference: https://uidai.gov.in/images/resource/User_manulal_QR_Code_15032019.pdf
  */
 import { decimalToBytes, gunzip } from "../utils/bytes.js";
+import { verifyAadhaarSignature } from "./signature.js";
 
 // Aadhaar QR text is encoded in ISO-8859-1 (Latin-1). A single shared decoder
 // instance is reused to avoid repeated allocations while parsing fields.
@@ -275,10 +276,11 @@ export async function decodeAadhaarQR(base10encodedstring) {
         : decompressedBytes;
 
     const data = _parseDetails(fieldBytes);
-    console.log(data);
+    const signatureResult = await verifyAadhaarSignature(decompressedBytes);
 
     return {
         ...data,
         imageBytes,
+        signatureResult,
     };
 }

@@ -1,0 +1,37 @@
+[
+  {
+    "file": "uidai_auth_prod.cer",
+    "info": "notBefore=Aug 14 10:24:26 2025 GMT | notAfter=Aug 13 10:24:25 2028 GMT | subject=C=IN, ST=KARNATAKA, OU=TECHNOLOGY CENTER, O=UIDAI, CN=UIDAI",
+    "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz83ldUE+gDAtZlmBKSJH/g1vbIsYWMr7P8Z96qRote0hQkm3Dik50r3Ls19wCv02+/tE/zXPmzFVMzyPuyykntaU8nazBTqgPHn4T80qfu02AfLAQBICtGR2Scjl+LukxgU5rpvx5JhzcNkTAUyCHatr6b/RPrzKEiUUf5QQn+FU5HJWUIvU3W3TJ8A/CNx0OxYAMOacOMXuX6ENUKvh8jKf31NeV8rgF0SQ47R1Tnv5w/JcmmklO9hcxX8UMUx4bvLXP3YN/Y86/nV1DYVT31FtpnKu5FTIytzTvKowj1B+twox1Ui7t1tAt8aWFBCX9cG7zK1MmY/GdDEWyHhoDwIDAQAB"
+  },
+  {
+    "file": "uidai_auth_sign_prod_2023.cer",
+    "info": "notBefore=May 27 05:03:05 2020 GMT | notAfter=May 27 05:03:05 2023 GMT | subject=C=IN, O=UIDAI, OU=Technology Centre, postalCode=560092, ST=Karnataka, street=bangalore, houseIdentifier=UIDAI Tech Centre, Aadhar Complex, NTI Layout, Tat, serialNumber=b19a87fae7ae9ef55ff166b5cc625700e28d82da76bd53f09836eeaeab3fe385, CN=DS UIDAI 01",
+    "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1Ig2iA6b9jenLPTGogsTgLx4nv1p/V2T0q3RBa4gJDKrZt41bMEWaXkFUEuN5S+NtZvPbO/jJj2Wi1NvSQqVYTA/7Jy0hVUOWJpYev7/PFzAAUOgkotQsmiS8hhpR5IOssO+1KrYrd7Kki+ZLkN/9PqaIEkrJhvEOP7wtNnF5JeHXbEFSz1fpHGRZIzZyogmQ89vaY9gXByG1MJzNqlpRhoahAHqZtvBbU9BHqpfFQFV58V7fvewaHc/K3LRs47D80FgcsRLWn7eNRdKnai+ozGwQQirRz+gKOOFslhQprTX3QSFkPJNiiMa42wPhUJvuMmTXE3ruzMQrJhDYt3/jQIDAQAB"
+  },
+  {
+    "file": "uidai_auth_sign_prod_2026.cer",
+    "info": "notBefore=Apr 28 09:40:46 2023 GMT | notAfter=Apr 28 09:40:46 2026 GMT | subject=C=IN, ST=Karnataka, OU=Technology Centre, O=UIDAI, CN=UIDAI, L=Bangalore, emailAddress=adauth.tc@uidai.net.in",
+    "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt6ei4Qnec7W2nWNYa3d6zwNzTPtrHogh1iAv62ydWg4rFKUYGhxP79shMmczd/Ef8ij8uoUUVKvCjn3QLxVnrOqhQYyNCn0VbUw1WX8Nj1IiNaSFMoXtLqqFuszjenGlLiNvGIbYAwMy8tfIOg6dRcXFN+3fIrWVnOz7OUA53tIkFQyV0gITwtxqrKtnXQAbuAILh1YiVVMH4F/N0Chx500tZpAfMGUQBKkwbP2jTcw8Dw4vd6MxKlzr40N5NYaG3Ngx/3ASSOjzPcNvTIP52X6p392vgmCxKbfc79IdkB80QxqlPOshAzS5E50k5t5YOlc3Tzq3Jq9TkN+/NXU2xQIDAQAB"
+  },
+  {
+    "file": "uidai_offline_2026.cer",
+    "info": "notBefore=Feb 21 12:23:19 2024 GMT | notAfter=Feb 16 22:27:40 2026 GMT | subject=C=IN, O=UNIQUE IDENTIFICATION AUTHORITY OF INDIA, postalCode=110001, ST=Delhi, street=Bangla Sahib Road Behind Kali Mandir GoleMarket, houseIdentifier=Aadhaar Headquarters, CN=DS Unique Identification Authority of India 05",
+    "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmMIJKj28JcTN1B72p2/pgzDCoguhs/rbIXgN/ybNNh0NVOrZV2KllrmT5VOYlMrABpvIp7JU/n6hma3/O14n7nvngJ/y3colh8rk7msDwVAO7ZuVD+GCzfaYPLLkUS+wqH7M7FOHIn/pyJo1Rkxm98lO3dyox5RuLG2Uqm7JfVIomm0t7QKJoM5rf8JNvPXdwsxN89eWlT2Bf7BF//G3FKiF7ZHfvIyyqte/3orRRG/M80QqLrDP1RIeOa53ZTgILXcyQOb2yZOqNH3iN2uSKRsusNO17To5FOb2J9Hd5wIMuDv3zw4MWTrKAWuTYon90QSeGRKv1d5AQNRt0x5dSwIDAQAB"
+  },
+  {
+    "file": "uidai_offline_publickey_17022026.cer",
+    "info": "notBefore=Feb 21 12:23:19 2024 GMT | notAfter=Feb 16 22:27:40 2026 GMT | subject=C=IN, O=UNIQUE IDENTIFICATION AUTHORITY OF INDIA, postalCode=110001, ST=Delhi, street=Bangla Sahib Road Behind Kali Mandir GoleMarket, houseIdentifier=Aadhaar Headquarters, CN=DS Unique Identification Authority of India 05",
+    "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmMIJKj28JcTN1B72p2/pgzDCoguhs/rbIXgN/ybNNh0NVOrZV2KllrmT5VOYlMrABpvIp7JU/n6hma3/O14n7nvngJ/y3colh8rk7msDwVAO7ZuVD+GCzfaYPLLkUS+wqH7M7FOHIn/pyJo1Rkxm98lO3dyox5RuLG2Uqm7JfVIomm0t7QKJoM5rf8JNvPXdwsxN89eWlT2Bf7BF//G3FKiF7ZHfvIyyqte/3orRRG/M80QqLrDP1RIeOa53ZTgILXcyQOb2yZOqNH3iN2uSKRsusNO17To5FOb2J9Hd5wIMuDv3zw4MWTrKAWuTYon90QSeGRKv1d5AQNRt0x5dSwIDAQAB"
+  },
+  {
+    "file": "uidai_offline_publickey_2026.cer",
+    "info": "notBefore=Feb  3 09:56:12 2026 GMT | notAfter=Feb  3 17:28:36 2029 GMT | subject=C=IN, O=UNIQUE IDENTIFICATION AUTHORITY OF INDIA, postalCode=110001, ST=Delhi, street=BANGLA SAHIB ROAD BEHIND KALI MANDIR GOLE MARKET NEW DELHI, houseIdentifier=4TH FLOOR UIDAI HEADQUARTERS, CN=DS Unique Identification Authority of India 06",
+    "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAh1+zYnvbcEm0Yz73s5u42odpUJMr9wv5bVw7sOE5nFNbrB+U++5I0f8cL2HoHnJOkwvLZzrD0jG/vxAKi6vii/gjEzUEgrkdIHxMP3D6GJs0MSQHiEXvIGOwPIH3BLtBOc3m28NVNT6Q9iq0gUwuxnlhV38UdNhCllqNYhWmAMPJkImgaKrRZvY2pWNs6gd+PlAF/9SO69x3+1meA8kPk2ZvQanZlx9tfaExeOe9or3NQiKy2+UbtXrpcoAfYbbWi1OUzXi5bJdhbGp239c1fX6UKyUM5IUMY+m3I7wu2WQ7lmeO2n/vwzQz/PKHXPWYu3bydWMLdCi07vOQBqzCKwIDAQAB"
+  },
+  {
+    "file": "uidai_offline_publickey_26022021.cer",
+    "info": "notBefore=Feb 26 11:54:24 2021 GMT | notAfter=Feb 27 00:27:11 2024 GMT | subject=C=IN, O=UNIQUE IDENTIFICATION AUTHORITY OF INDIA, postalCode=110001, ST=Delhi, street=BEHIND KALI MANDIR, houseIdentifier=AADHAR HQ BANGLA SAHIB ROAD, CN=DS UNIQUE IDENTIFICATION AUTHORITY OF INDIA 05",
+    "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAonIsDl8t5bpwftk/A27CsfC5VZMjkPrMDwvL8gyAoVwIi0iGhmty6yWrC/VaL+Brae29XMg7dMdwnbIUHmwHxovN+FnT2vfz/O0kHQcgVdwVSIR0tFwsmC+pVKpSqm//skgYYcZQhdhLZBWOn0PZ81ymm0jOkwBSIQKkyuCTv/1HSwjTLR0EBvaH9+Vb0iaiOEv1ikHDhMOXTxx8URWBnJJt463z7LuZBMSG8fXVMDl3vqY1hDZzKbXBaK/clRIXMff0jUOvfPMfabHju+eUnceosQwL3eurq96+oHahz4FmrfBqikHe3xQ7/4NdvSvVuwth0kcsI0ptRBG8m1NglQIDAQAB"
+  }
+]

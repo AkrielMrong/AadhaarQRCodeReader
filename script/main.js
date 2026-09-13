@@ -238,21 +238,24 @@ async function handleDetectedPayload(rawText) {
         return;
     }
 
-    // If the QR was scanned live (not loaded from the URL param), redirect
-    // so the result URL is shareable and the back button works naturally.
-    const params = new URLSearchParams(window.location.search);
-    if (!params.has("data")) {
-        location.replace("?data=" + encodeURIComponent(safeText));
-        return;
-    }
-
     try {
         if (dom.placeholder) dom.placeholder.style.display = "none";
+        setStatus("Decoding Aadhaar details...", "active");
 
         const fields = await decodeAadhaarQR(safeText);
         await renderResult(fields);
         setStatus("QR verified successfully", "success");
         camera.stopCamera();
+
+        // Update URL state without full page reload so result is shareable
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("data") !== safeText) {
+            try {
+                history.pushState({ data: safeText }, "", "?data=" + encodeURIComponent(safeText));
+            } catch (err) {
+                console.warn("Could not update URL history:", err);
+            }
+        }
     } catch (e) {
         setStatus("Error: " + e.message, "error");
         console.error(e);
@@ -288,15 +291,35 @@ function flipCard() {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 /**
- * Navigates back to the scanner by replacing the current history entry with
- * the bare pathname (strips the `?data=` param). This triggers a fresh page
- * load with the scanner in its initial state.
+ * Navigates back to the scanner smoothly without a full page reload.
  *
  * @returns {void}
  */
 function scanAgain() {
-    location.replace(location.pathname);
+    try {
+        history.pushState({}, "", location.pathname);
+    } catch (e) {
+        location.replace(location.pathname);
+        return;
+    }
+    camera.stopCamera();
+    resetCardOrientation();
+    showScanner();
+    setStatus("Tap Start Camera to begin scanning");
 }
+
+window.addEventListener("popstate", () => {
+    const params = new URLSearchParams(window.location.search);
+    const data = params.get("data");
+    if (data) {
+        handleDetectedPayload(data);
+    } else {
+        camera.stopCamera();
+        resetCardOrientation();
+        showScanner();
+        setStatus("Tap Start Camera to begin scanning");
+    }
+});
 
 // ─── Event wiring ─────────────────────────────────────────────────────────────
 

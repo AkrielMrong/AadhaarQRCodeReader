@@ -3,3 +3,4 @@ var zbarWasm=function(A){"use strict";function I(A,I,g,B){return new(g||(g=Promi
 
 if (typeof module !== "undefined" && module.exports) { module.exports = zbarWasm; }
 if (typeof globalThis !== "undefined") { globalThis.zbarWasm = zbarWasm; }
+if (typeof window !== "undefined") { window.zbarWasm = zbarWasm; }

@@ -162,18 +162,23 @@ function _findFieldDelimiters(bytes) {
  */
 function parseTimestamp(ts) {
     if (typeof ts !== "string" || ts.length !== 17) {
-        throw new TypeError('Expected timestamp in format "YYYYMMDDHHMMSSsss"');
+        return null;
     }
 
-    return new Date(
-        Number(ts.slice(0, 4)), // year
-        Number(ts.slice(4, 6)) - 1, // month (0-based)
-        Number(ts.slice(6, 8)), // day
-        Number(ts.slice(8, 10)), // hour
-        Number(ts.slice(10, 12)), // minute
-        Number(ts.slice(12, 14)), // second
-        Number(ts.slice(14, 17)) // millisecond
-    );
+    try {
+        const d = new Date(
+            Number(ts.slice(0, 4)), // year
+            Number(ts.slice(4, 6)) - 1, // month (0-based)
+            Number(ts.slice(6, 8)), // day
+            Number(ts.slice(8, 10)), // hour
+            Number(ts.slice(10, 12)), // minute
+            Number(ts.slice(12, 14)), // second
+            Number(ts.slice(14, 17)) // millisecond
+        );
+        return isNaN(d.getTime()) ? null : d;
+    } catch {
+        return null;
+    }
 }
 /**
  * Parses text fields from decompressed Aadhaar QR bytes.
@@ -199,11 +204,9 @@ function _parseDetails(bytes) {
     data.referenceid = ref.slice(4);
     data.reference_date = parseTimestamp(ref.slice(4));
 
-    console.log(
-        typeof data.reference_date,
-        data.reference_date,
-        data.reference_date.toISOString()
-    );
+    if (data.reference_date instanceof Date && !isNaN(data.reference_date.getTime())) {
+        console.log("Reference date:", data.reference_date.toISOString());
+    }
 
     const EMAIL_MOBILE_STATUS = {
         0: "none",

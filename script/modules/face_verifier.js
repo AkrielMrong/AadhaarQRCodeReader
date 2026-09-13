@@ -4,32 +4,65 @@
  * the Python InsightFace ArcFace verification backend.
  */
 
-const DEFAULT_SERVER_URL =
-    typeof window !== "undefined" &&
-    window.location.origin &&
-    window.location.origin.includes("qzz.io")
-        ? window.location.origin
-        : "http://localhost:8000";
+export const CLOUDFLARE_TUNNEL_URL = "https://sscf.qzz.io";
+export const LOCAL_SERVER_URL = "http://localhost:8000";
+
+/**
+ * Gets the configured or default InsightFace server URL.
+ * Automatically selects the HTTPS Cloudflare Tunnel URL when loaded on HTTPS (e.g. GitHub Pages)
+ * to avoid browser mixed-content restrictions.
+ *
+ * @returns {string}
+ */
+export function getServerUrl() {
+    if (typeof window === "undefined") return LOCAL_SERVER_URL;
+
+    const custom = localStorage.getItem("aadhaar_insightface_url");
+    if (custom && custom.trim()) {
+        return custom.trim().replace(/\/+$/, "");
+    }
+
+    // If loaded on HTTPS (e.g. GitHub Pages), use the Cloudflare HTTPS Tunnel
+    if (window.location.protocol === "https:") {
+        return CLOUDFLARE_TUNNEL_URL;
+    }
+
+    // Default to localhost:8000 on plain HTTP
+    return LOCAL_SERVER_URL;
+}
+
+/**
+ * Saves or clears the user-specified server URL.
+ * @param {string} [url]
+ */
+export function setServerUrl(url) {
+    if (typeof window === "undefined") return;
+    if (url && url.trim()) {
+        localStorage.setItem("aadhaar_insightface_url", url.trim().replace(/\/+$/, ""));
+    } else {
+        localStorage.removeItem("aadhaar_insightface_url");
+    }
+}
 
 /**
  * Checks if the InsightFace backend server is reachable and healthy.
  *
- * @param {string} [serverUrl=DEFAULT_SERVER_URL]
- * @returns {Promise<{ available: boolean, engine?: string, error?: string }>}
+ * @param {string} [serverUrl]
+ * @returns {Promise<{ available: boolean, engine?: string, error?: string, url: string }>}
  */
-export async function checkServerHealth(serverUrl = DEFAULT_SERVER_URL) {
+export async function checkServerHealth(serverUrl = getServerUrl()) {
     try {
         const ctrl = new AbortController();
-        const timeout = setTimeout(() => ctrl.abort(), 2500);
+        const timeout = setTimeout(() => ctrl.abort(), 3500);
         const resp = await fetch(`${serverUrl}/health`, { signal: ctrl.signal });
         clearTimeout(timeout);
         if (resp.ok) {
             const data = await resp.json();
-            return { available: true, engine: data.engine };
+            return { available: true, engine: data.engine, url: serverUrl };
         }
-        return { available: false, error: `HTTP ${resp.status}` };
+        return { available: false, error: `HTTP ${resp.status}`, url: serverUrl };
     } catch (err) {
-        return { available: false, error: err.message };
+        return { available: false, error: err.message, url: serverUrl };
     }
 }
 
@@ -100,14 +133,14 @@ export function captureVideoFrame(videoElem) {
  * @param {Object} params
  * @param {string} params.aadhaarImage - Base64 data-uri of Aadhaar photo.
  * @param {string} params.liveImage - Base64 data-uri of live selfie.
- * @param {string} [params.serverUrl=DEFAULT_SERVER_URL] - URL of InsightFace backend.
+ * @param {string} [params.serverUrl] - URL of InsightFace backend.
  * @param {number} [params.threshold=0.40] - Matching threshold.
  * @returns {Promise<Object>} Verification result from InsightFace.
  */
 export async function verifyFaceWithServer({
     aadhaarImage,
     liveImage,
-    serverUrl = DEFAULT_SERVER_URL,
+    serverUrl = getServerUrl(),
     threshold = 0.40,
 }) {
     const resp = await fetch(`${serverUrl}/api/verify`, {

@@ -971,3 +971,55 @@
     background: #fa5252;
 }
 
+.fvc-btn-cfg {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 4px;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.fvc-btn-cfg:hover {
+    opacity: 1;
+}
+
+.fvc-server-config {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.fvc-server-config input {
+    flex: 1;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: var(--rad-sm);
+    border: 1px solid #ced4da;
+    background: #faf6f0;
+    color: var(--text);
+    outline: none;
+}
+
+.fvc-cfg-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: var(--rad-sm);
+    cursor: pointer;
+    border: none;
+}
+
+.fvc-cfg-save {
+    background: var(--primary);
+    color: #fff;
+}
+
+.fvc-cfg-reset {
+    background: #e9ecef;
+    color: #495057;
+}
+

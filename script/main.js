@@ -29,6 +29,8 @@ import {
     stopSelfieCamera,
     captureVideoFrame,
     verifyFaceWithServer,
+    getServerUrl,
+    setServerUrl,
 } from "./modules/face_verifier.js";
 import { setStatus } from "./utils/dom.js";
 import { extractComment, formatAadhaarNumber } from "./utils/format.js";
@@ -128,6 +130,11 @@ const dom = {
     fvcServerStatus:     document.getElementById("fvc-server-status"),
     fvcDot:              document.getElementById("fvc-dot"),
     fvcServerText:       document.getElementById("fvc-server-text"),
+    btnConfigServer:     document.getElementById("btn-config-server"),
+    fvcServerConfig:     document.getElementById("fvc-server-config"),
+    fvcServerInput:      document.getElementById("fvc-server-input"),
+    btnSaveServer:       document.getElementById("btn-save-server"),
+    btnResetServer:      document.getElementById("btn-reset-server"),
 };
 
 /** Default photo `src` captured before any scan so it can be restored on reset. */
@@ -449,13 +456,18 @@ async function updateServerHealthIndicator() {
     dom.fvcDot.className = "fvc-dot";
     dom.fvcServerText.textContent = "Checking InsightFace server...";
 
-    const health = await checkServerHealth();
+    const currentUrl = getServerUrl();
+    if (dom.fvcServerInput && !dom.fvcServerInput.value) {
+        dom.fvcServerInput.value = currentUrl;
+    }
+
+    const health = await checkServerHealth(currentUrl);
     if (health.available) {
         dom.fvcDot.className = "fvc-dot online";
-        dom.fvcServerText.textContent = "InsightFace AI Server: Online (buffalo_s)";
+        dom.fvcServerText.textContent = `AI Server: Online (${currentUrl})`;
     } else {
         dom.fvcDot.className = "fvc-dot offline";
-        dom.fvcServerText.textContent = "InsightFace Server: Offline (run: python server.py)";
+        dom.fvcServerText.textContent = `AI Server: Offline (${currentUrl})`;
     }
 }
 
@@ -673,6 +685,35 @@ function initEvents() {
                 }
             };
             reader.readAsDataURL(file);
+        });
+    }
+
+    if (dom.btnConfigServer && dom.fvcServerConfig) {
+        dom.btnConfigServer.addEventListener("click", () => {
+            dom.fvcServerConfig.classList.toggle("is-hidden");
+            if (!dom.fvcServerConfig.classList.contains("is-hidden") && dom.fvcServerInput) {
+                dom.fvcServerInput.value = getServerUrl();
+                dom.fvcServerInput.focus();
+            }
+        });
+    }
+
+    if (dom.btnSaveServer && dom.fvcServerInput) {
+        dom.btnSaveServer.addEventListener("click", () => {
+            const val = dom.fvcServerInput.value.trim();
+            if (val) {
+                setServerUrl(val);
+                if (dom.fvcServerConfig) dom.fvcServerConfig.classList.add("is-hidden");
+                updateServerHealthIndicator();
+            }
+        });
+    }
+
+    if (dom.btnResetServer) {
+        dom.btnResetServer.addEventListener("click", () => {
+            setServerUrl("");
+            if (dom.fvcServerConfig) dom.fvcServerConfig.classList.add("is-hidden");
+            updateServerHealthIndicator();
         });
     }
 }

@@ -3,69 +3,83 @@
  * @description Camera access, real-time QR scanning loop, and file-upload QR
  * detection for the Aadhaar QR Code Reader app.
  *
+ * Implements a multi-tiered decoding architecture:
+ * 1. Native `window.BarcodeDetector` (hardware-accelerated ML Kit on Android Chrome)
+ * 2. WebAssembly ZBar (`window.zbarWasm`, reference C barcode engine compiled to WASM)
+ * 3. `jsQR` with adaptive contrast enhancement fallback
+ *
  * The module exposes two public functions:
  * - {@link createCameraController} — creates a stateful camera controller object.
  * - {@link handleFileUpload} — reads a user-selected image file and scans it for
  *   a QR code in one shot.
+ */
+
+// ─── Helpers: Contrast enhancement ──────────────────────────────────────────
+
+/**
+ * Enhances contrast of an RGBA image buffer to assist decoders on low-contrast
+ * or glare-affected scans (e.g. photos of Aadhaar cards).
  *
- * Both functions delegate QR decoding to the globally loaded `jsQR` library
- * (loaded via CDN in `index.html`).
+ * @param {Uint8ClampedArray} data - RGBA pixel array
+ * @param {number} factor - Contrast multiplier (e.g. 1.5 - 2.0)
+ * @returns {Uint8ClampedArray} New enhanced RGBA buffer
  */
+function enhanceContrast(data, factor = 1.6) {
+    const output = new Uint8ClampedArray(data.length);
+    let minLum = 255;
+    let maxLum = 0;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+    // First pass: find luminance range
+    for (let i = 0; i < data.length; i += 4) {
+        const lum = (data[i] * 306 + data[i + 1] * 601 + data[i + 2] * 117) >> 10;
+        if (lum < minLum) minLum = lum;
+        if (lum > maxLum) maxLum = lum;
+    }
+
+    const mid = (minLum + maxLum) / 2;
+
+    // Second pass: apply contrast stretch around mid-tone
+    for (let i = 0; i < data.length; i += 4) {
+        output[i]     = Math.min(255, Math.max(0, ((data[i]     - mid) * factor) + mid));
+        output[i + 1] = Math.min(255, Math.max(0, ((data[i + 1] - mid) * factor) + mid));
+        output[i + 2] = Math.min(255, Math.max(0, ((data[i + 2] - mid) * factor) + mid));
+        output[i + 3] = data[i + 3]; // Preserve alpha
+    }
+
+    return output;
+}
+
+// ─── Native BarcodeDetector Cache ────────────────────────────────────────────
+
+let nativeDetectorInstance = null;
+let nativeDetectorChecked = false;
 
 /**
- * @typedef {Object} CameraController
- * @property {() => Promise<boolean>} startCamera  - Requests camera permission,
- *   starts the video stream, and begins the scan loop. Resolves `true` on
- *   success, `false` on error.
- * @property {() => void}             stopCamera   - Stops all active media
- *   tracks and cancels the scan loop.
- * @property {() => Promise<void>}    switchCamera - Toggles between front and
- *   rear cameras and restarts the scan loop.
+ * Lazily creates and returns a native BarcodeDetector if supported by the browser.
+ * @returns {Promise<BarcodeDetector | null>}
  */
+async function getNativeDetector() {
+    if (nativeDetectorChecked) return nativeDetectorInstance;
+    nativeDetectorChecked = true;
 
-/**
- * @typedef {Object} CameraControllerOptions
- * @property {HTMLVideoElement}  video         - `<video>` element used to
- *   display the live camera feed.
- * @property {HTMLCanvasElement} canvas        - Off-screen `<canvas>` used to
- *   capture individual frames for QR analysis.
- * @property {(data: string) => void} onQrDetected - Callback invoked with the
- *   raw QR string as soon as a code is successfully decoded.
- * @property {(msg: string, type?: string) => void} onStatus - Callback used to
- *   report status messages and dot-indicator state changes to the UI.
- */
-
-/**
- * @typedef {Object} FileUploadOptions
- * @property {HTMLCanvasElement} canvas           - Canvas used to rasterise the
- *   uploaded image for QR scanning.
- * @property {(data: string) => void} onQrDetected - Called with the raw QR
- *   string when a code is found.
- * @property {(msg: string, type?: string) => void} onStatus - UI status
- *   callback (same contract as in {@link CameraControllerOptions}).
- * @property {() => void} onPlaceholderHide       - Called just before
- *   `onQrDetected` so the caller can hide any placeholder UI.
- */
+    if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+        try {
+            const formats = await window.BarcodeDetector.getSupportedFormats();
+            if (formats.includes("qr_code")) {
+                nativeDetectorInstance = new window.BarcodeDetector({ formats: ["qr_code"] });
+            }
+        } catch (err) {
+            console.warn("BarcodeDetector initialization failed:", err);
+            nativeDetectorInstance = null;
+        }
+    }
+    return nativeDetectorInstance;
+}
 
 // ─── Camera controller ────────────────────────────────────────────────────────
 
 /**
  * Creates and returns a stateful camera controller for continuous QR scanning.
- *
- * Internally the controller keeps track of the active `MediaStream`, the
- * current `facingMode`, and a `requestAnimationFrame` handle for the scan loop.
- * All state is encapsulated — callers interact only through the returned
- * {@link CameraController} object.
- *
- * ### Usage
- * ```js
- * const camera = createCameraController({
- *   video, canvas, onQrDetected: handleQR, onStatus: setStatus,
- * });
- * await camera.startCamera();
- * ```
  *
  * @param {CameraControllerOptions} options
  * @returns {CameraController}
@@ -83,18 +97,14 @@ export function createCameraController({ video, canvas, onQrDetected, onStatus }
     /** @type {number | null} `requestAnimationFrame` handle for the scan loop. */
     let animFrame = null;
 
-    // ── Public: startCamera ────────────────────────────────────────────────
+    /** Guard to prevent overlapping frame processing. */
+    let isProcessing = false;
+
+    /** Timestamp of last scan to throttle non-hardware frame processing. */
+    let lastScanTime = 0;
 
     /**
-     * Requests camera access, attaches the stream to the `<video>` element,
-     * and starts the QR scan loop.
-     *
-     * On mobile devices the rear (`environment`) camera is preferred; on
-     * desktops the front (`user`) camera is used as it is typically the only
-     * one available.
-     *
-     * @returns {Promise<boolean>} `true` if the camera started successfully,
-     *   `false` if the user denied permission or an error occurred.
+     * Starts camera with ideal 1080p resolution for high-density Aadhaar QR codes.
      */
     async function startCamera() {
         stopCamera();
@@ -105,8 +115,8 @@ export function createCameraController({ video, canvas, onQrDetected, onStatus }
             const constraints = {
                 video: {
                     facingMode: isMobile ? { ideal: "environment" } : "user",
-                    width: { ideal: 1280 },
-                    height: { ideal: 1280 },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
                 },
             };
 
@@ -124,15 +134,8 @@ export function createCameraController({ video, canvas, onQrDetected, onStatus }
         }
     }
 
-    // ── Public: stopCamera ────────────────────────────────────────────────
-
     /**
-     * Stops the scan loop and releases all camera tracks.
-     *
-     * Safe to call even when the camera is already stopped — all state is
-     * reset to its initial values.
-     *
-     * @returns {void}
+     * Stops the scan loop and releases media tracks.
      */
     function stopCamera() {
         scanning = false;
@@ -147,18 +150,11 @@ export function createCameraController({ video, canvas, onQrDetected, onStatus }
         }
 
         video.srcObject = null;
+        isProcessing = false;
     }
 
-    // ── Public: switchCamera ──────────────────────────────────────────────
-
     /**
-     * Toggles between the front (`user`) and rear (`environment`) camera and
-     * restarts the scan loop on the new device.
-     *
-     * If the new camera cannot be opened the status indicator is updated with
-     * the error message and the scan loop is not restarted.
-     *
-     * @returns {Promise<void>}
+     * Switches between front and rear cameras.
      */
     async function switchCamera() {
         facingMode = facingMode === "environment" ? "user" : "environment";
@@ -166,7 +162,11 @@ export function createCameraController({ video, canvas, onQrDetected, onStatus }
 
         try {
             stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: { ideal: facingMode } },
+                video: {
+                    facingMode: { ideal: facingMode },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                },
             });
             video.srcObject = stream;
             await video.play();
@@ -178,46 +178,102 @@ export function createCameraController({ video, canvas, onQrDetected, onStatus }
         }
     }
 
-    // ── Private: scanLoop ─────────────────────────────────────────────────
-
     /**
-     * Recursive `requestAnimationFrame` loop that captures a square-cropped
-     * frame from the video feed on each tick and passes it to `jsQR` for
-     * analysis.
-     *
-     * The frame is cropped to a centre square (the smaller of videoWidth /
-     * videoHeight) so that the aspect ratio matches a typical QR target area.
-     * Once a QR code is found the loop stops and `onQrDetected` is called.
-     *
-     * @returns {void}
+     * QR scan loop with multi-tier detection:
+     * 1. Native BarcodeDetector directly on <video> (hardware-accelerated, < 15ms)
+     * 2. WebAssembly ZBar on canvas frame (high-density QR specialist)
+     * 3. jsQR fallback
      */
-    function scanLoop() {
+    async function scanLoop() {
         if (!scanning) return;
 
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            const size = Math.min(video.videoWidth, video.videoHeight);
-            canvas.width = size;
-            canvas.height = size;
+        const now = performance.now();
+        const nativeDetector = await getNativeDetector();
 
-            const ctx = canvas.getContext("2d");
-            const ox = (video.videoWidth - size) / 2;
-            const oy = (video.videoHeight - size) / 2;
-            ctx.drawImage(video, ox, oy, size, size, 0, 0, size, size);
+        // Throttle processing if not using native detector to preserve battery and UI responsiveness
+        const throttleInterval = nativeDetector ? 50 : 120;
 
-            const imgData = ctx.getImageData(0, 0, size, size);
-            const code = jsQR(imgData.data, imgData.width, imgData.height, {
-                inversionAttempts: "dontInvert",
-            });
+        if (!isProcessing && video.readyState >= video.HAVE_ENOUGH_DATA && (now - lastScanTime >= throttleInterval)) {
+            isProcessing = true;
+            lastScanTime = now;
 
-            if (code && code.data) {
-                scanning = false;
-                onStatus("QR detected! Decoding...", "active");
-                onQrDetected(code.data.trim());
-                return;
+            try {
+                let detectedData = null;
+
+                // ── 1. Native BarcodeDetector (Zero-copy on <video>) ──
+                if (nativeDetector) {
+                    try {
+                        const barcodes = await nativeDetector.detect(video);
+                        if (barcodes && barcodes.length > 0) {
+                            const val = barcodes[0].rawValue || barcodes[0].rawData;
+                            if (val && val.trim()) {
+                                detectedData = val.trim();
+                            }
+                        }
+                    } catch (e) {
+                        // Pass through to WASM fallback
+                    }
+                }
+
+                // ── 2. Canvas-based scan (WASM ZBar / jsQR) ──
+                if (!detectedData && video.videoWidth && video.videoHeight) {
+                    const vw = video.videoWidth;
+                    const vh = video.videoHeight;
+
+                    // Aadhaar QRs require high resolution. We scan the central square at max density.
+                    const size = Math.min(vw, vh);
+                    canvas.width = size;
+                    canvas.height = size;
+
+                    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+                    const ox = (vw - size) / 2;
+                    const oy = (vh - size) / 2;
+                    ctx.drawImage(video, ox, oy, size, size, 0, 0, size, size);
+
+                    const imgData = ctx.getImageData(0, 0, size, size);
+
+                    // Try WASM ZBar first (handles Version 30+ dense QRs)
+                    if (window.zbarWasm && typeof window.zbarWasm.scanImageData === "function") {
+                        try {
+                            const symbols = await window.zbarWasm.scanImageData(imgData);
+                            if (symbols && symbols.length > 0) {
+                                const text = symbols[0].decode();
+                                if (text && text.trim()) {
+                                    detectedData = text.trim();
+                                }
+                            }
+                        } catch (e) {
+                            // WASM scan error
+                        }
+                    }
+
+                    // Try jsQR fallback
+                    if (!detectedData && typeof jsQR === "function") {
+                        const code = jsQR(imgData.data, imgData.width, imgData.height, {
+                            inversionAttempts: "dontInvert",
+                        });
+                        if (code && code.data && code.data.trim()) {
+                            detectedData = code.data.trim();
+                        }
+                    }
+                }
+
+                if (detectedData) {
+                    scanning = false;
+                    onStatus("QR detected! Decoding...", "active");
+                    onQrDetected(detectedData);
+                    return;
+                }
+            } catch (err) {
+                console.warn("Scan loop error:", err);
+            } finally {
+                isProcessing = false;
             }
         }
 
-        animFrame = requestAnimationFrame(scanLoop);
+        if (scanning) {
+            animFrame = requestAnimationFrame(scanLoop);
+        }
     }
 
     return { startCamera, stopCamera, switchCamera };
@@ -226,21 +282,17 @@ export function createCameraController({ video, canvas, onQrDetected, onStatus }
 // ─── File upload ──────────────────────────────────────────────────────────────
 
 /**
- * Handles a file-input `change` event by reading the selected image, drawing
- * it onto a canvas, and running `jsQR` over the full image in a single pass.
+ * Handles image file upload with multi-tier detection & contrast enhancement.
  *
- * The object URL created for the image is revoked immediately after the image
- * loads (success or failure) to avoid memory leaks. The file-input value is
- * also cleared so the same file can be re-selected if needed.
+ * Scans the user image using:
+ * 1. Native `BarcodeDetector` on Image element
+ * 2. WebAssembly ZBar on full resolution ImageData
+ * 3. ZBar on contrast-enhanced ImageData (recovers low-contrast / glare photos)
+ * 4. `jsQR` on raw and enhanced ImageData
  *
- * @param {Event} event - The `change` event from the `<input type="file">`.
+ * @param {Event} event - The `change` event from `<input type="file">`.
  * @param {FileUploadOptions} options
  * @returns {void}
- *
- * @example
- * fileInput.addEventListener("change", event =>
- *   handleFileUpload(event, { canvas, onQrDetected, onStatus, onPlaceholderHide })
- * );
  */
 export function handleFileUpload(event, { canvas, onQrDetected, onStatus, onPlaceholderHide }) {
     const file = event.target.files && event.target.files[0];
@@ -251,33 +303,119 @@ export function handleFileUpload(event, { canvas, onQrDetected, onStatus, onPlac
     const img = new window.Image();
     const url = URL.createObjectURL(file);
 
-    img.onload = () => {
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+    img.onload = async () => {
+        try {
+            onStatus("Scanning image for Aadhaar QR code...", "active");
 
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
+            // ── Tier 1: Native BarcodeDetector ──
+            const nativeDetector = await getNativeDetector();
+            if (nativeDetector) {
+                try {
+                    const barcodes = await nativeDetector.detect(img);
+                    if (barcodes && barcodes.length > 0) {
+                        const val = barcodes[0].rawValue || barcodes[0].rawData;
+                        if (val && val.trim()) {
+                            onSuccess(val.trim());
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Native BarcodeDetector on file upload failed:", e);
+                }
+            }
 
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imgData.data, imgData.width, imgData.height, {
-            inversionAttempts: "attemptBoth",
-        });
+            // Draw image to canvas at full natural resolution
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
 
-        URL.revokeObjectURL(url);
-        event.target.value = "";
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-        if (code && code.data) {
-            onPlaceholderHide();
-            onQrDetected(code.data.trim());
-        } else {
-            onStatus("No QR code found in image", "error");
+            // ── Tier 2: WASM ZBar on raw ImageData ──
+            if (window.zbarWasm && typeof window.zbarWasm.scanImageData === "function") {
+                try {
+                    const symbols = await window.zbarWasm.scanImageData(imgData);
+                    if (symbols && symbols.length > 0) {
+                        const text = symbols[0].decode();
+                        if (text && text.trim()) {
+                            onSuccess(text.trim());
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("WASM ZBar raw scan failed:", e);
+                }
+            }
+
+            // ── Tier 3: jsQR on raw ImageData ──
+            if (typeof jsQR === "function") {
+                const code = jsQR(imgData.data, imgData.width, imgData.height, {
+                    inversionAttempts: "attemptBoth",
+                });
+                if (code && code.data && code.data.trim()) {
+                    onSuccess(code.data.trim());
+                    return;
+                }
+            }
+
+            // ── Tier 4: Contrast-enhanced pass (crucial for photos with shadows/glare) ──
+            onStatus("Enhancing contrast & re-scanning...", "active");
+            const enhancedData = enhanceContrast(imgData.data, 1.6);
+
+            // Try ZBar WASM on enhanced buffer
+            if (window.zbarWasm && typeof window.zbarWasm.scanRGBABuffer === "function") {
+                try {
+                    const symbols = await window.zbarWasm.scanRGBABuffer(
+                        enhancedData,
+                        imgData.width,
+                        imgData.height
+                    );
+                    if (symbols && symbols.length > 0) {
+                        const text = symbols[0].decode();
+                        if (text && text.trim()) {
+                            onSuccess(text.trim());
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("WASM ZBar enhanced scan failed:", e);
+                }
+            }
+
+            // Try jsQR on enhanced buffer
+            if (typeof jsQR === "function") {
+                const code = jsQR(enhancedData, imgData.width, imgData.height, {
+                    inversionAttempts: "attemptBoth",
+                });
+                if (code && code.data && code.data.trim()) {
+                    onSuccess(code.data.trim());
+                    return;
+                }
+            }
+
+            onStatus("No QR code found in image. Please ensure the QR is clear and well-lit.", "error");
+        } catch (err) {
+            console.error("File upload processing error:", err);
+            onStatus("Error reading image: " + err.message, "error");
+        } finally {
+            URL.revokeObjectURL(url);
+            event.target.value = "";
         }
     };
 
     img.onerror = () => {
         URL.revokeObjectURL(url);
-        onStatus("Could not load image", "error");
+        onStatus("Could not load image file", "error");
+        event.target.value = "";
     };
 
     img.src = url;
+
+    function onSuccess(data) {
+        URL.revokeObjectURL(url);
+        event.target.value = "";
+        onPlaceholderHide();
+        onQrDetected(data);
+    }
 }
